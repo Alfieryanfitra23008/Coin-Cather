@@ -145,3 +145,136 @@ class Coin:
         rotated_image = pygame.transform.rotate(self.image, self.angle)
         new_rect = rotated_image.get_rect(center=(self.x + self.radius, self.y + self.radius))
         screen.blit(rotated_image, new_rect.topleft)
+
+# Kelas Bomb
+class Bomb:
+    def __init__(self, speed):
+        self.radius = 35
+        self.x = random.randint(0, WIDTH - self.radius * 2)
+        self.y = -self.radius * 2
+        self.speed = speed
+        self.angle = 0
+        self.rotation_speed = random.uniform(2, 5)
+        self.image = pygame.image.load("PBO/Minggu 4/bom.png")  # Path ke gambar bom
+        self.image = pygame.transform.scale(self.image, (self.radius * 2, self.radius * 2))
+        self.color = (0, 0, 0)
+
+    def update(self):
+        self.y += self.speed
+        self.angle += self.rotation_speed
+
+    def draw(self, screen):
+        rotated_image = pygame.transform.rotate(self.image, self.angle)
+        new_rect = rotated_image.get_rect(center=(self.x + self.radius, self.y + self.radius))
+        screen.blit(rotated_image, new_rect.topleft)
+
+# Kelas Game
+class Game:
+    def __init__(self, level=1):
+        self.screen = screen
+        self.clock = pygame.time.Clock()
+        self.player = Player()
+        self.coins = []
+        self.bombs = []
+        self.particles = []
+        self.score = 0
+        self.running = True
+        self.slow_motion_active = False
+        self.slow_motion_timer = 0
+        self.background = pygame.image.load("PBO/Minggu 4/imgg.webp")
+        self.background = pygame.transform.scale(self.background, (WIDTH, HEIGHT))
+        self.coin_counts = {"yellow": 0, "green": 0, "blue": 0}
+        self.level = level
+        
+        if self.level == 1:  # Easy
+            self.coin_speed = 3
+            self.bomb_speed = 4
+        elif self.level == 2:  # Normal
+            self.coin_speed = 7
+            self.bomb_speed = 8
+        elif self.level == 3:  # Extreme
+            self.coin_speed = 10
+            self.bomb_speed = 11
+        
+    def spawn_coin(self):
+        if random.random() < 0.05:
+            self.coins.append(Coin(self.coin_speed))
+
+    def spawn_bomb(self):
+        if random.random() < 0.03:
+            self.bombs.append(Bomb(self.bomb_speed))
+
+    def spawn_particles(self, x, y, color):
+        for _ in range(20):
+            self.particles.append(Particle(x, y, color))
+
+    def handle_input(self):
+        keys = pygame.key.get_pressed()
+        if not self.slow_motion_active:
+            self.player.move(keys)
+
+    def update(self):
+        if not self.slow_motion_active:
+            for coin in self.coins[:]:
+                coin.update()
+                if coin.y > HEIGHT:
+                    self.coins.remove(coin)
+                elif (self.player.x < coin.x + coin.radius * 2 and
+                      self.player.x + self.player.width > coin.x and
+                      self.player.y < coin.y + coin.radius * 2 and
+                      self.player.y + self.player.height > coin.y):
+                    self.coins.remove(coin)
+                    self.spawn_particles(coin.x + coin.radius, coin.y + coin.radius, coin.color)
+                    coin_sound.play()  # Tambahkan suara untuk koin
+                    self.score += coin.points
+                    if coin.color == (255, 223, 0):
+                        self.coin_counts["yellow"] += 1
+                    elif coin.color == (0, 255, 0):
+                        self.coin_counts["green"] += 1
+                    elif coin.color == (0, 0, 255):
+                        self.coin_counts["blue"] += 1
+
+            for bomb in self.bombs[:]:
+                bomb.update()
+                if bomb.y > HEIGHT:
+                    self.bombs.remove(bomb)
+                elif (self.player.x < bomb.x + bomb.radius * 2 and
+                      self.player.x + self.player.width > bomb.x and
+                      self.player.y < bomb.y + bomb.radius * 2 and
+                      self.player.y + self.player.height > bomb.y):
+                    self.bombs.remove(bomb)
+                    self.spawn_particles(bomb.x + bomb.radius, bomb.y + bomb.radius, bomb.color)
+                    explosion_sound.play()  # Tambahkan suara untuk bom
+                    self.player.destroy()  # Hancurkan keranjang saat terkena bom
+
+                    self.start_slow_motion()
+
+        for particle in self.particles[:]:
+            particle.update()
+            if particle.lifetime <= 0:
+                self.particles.remove(particle)
+
+        self.player.update()
+
+        if self.slow_motion_active:
+            self.slow_motion_timer -= 1
+            if self.slow_motion_timer <= 0 and self.player.destruction_timer <= 0:
+                self.end_slow_motion()
+
+
+    def render(self):
+        self.screen.blit(self.background, (0, 0))
+        self.player.draw(self.screen)
+        for coin in self.coins:
+            coin.draw(self.screen)
+        for bomb in self.bombs:
+            bomb.draw(self.screen)
+        for particle in self.particles:
+            particle.draw(self.screen)
+
+        font = pygame.font.Font(None, 36)
+        score_text = font.render(f"Score: {self.score}", True, BLACK)  # Score warna hitam
+        self.screen.blit(score_text, (10, 10))
+
+        pygame.display.flip()
+
