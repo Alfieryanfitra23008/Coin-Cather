@@ -9,14 +9,14 @@ RED = (255, 0, 0)
 BLACK = (0, 0, 0)
 FPS = 60
 
-# Inisialisasi pygame
+# Inisialisasi Pygame
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Coin Catcher")
 
-# Load suara
-coin_sound = pygame.mixer.Sound("PBO/UAS/Sound_Coin.mp3")
-explosion_sound = pygame.mixer.Sound("PBO/Minggu 4/Sound_Bomb.mp3")
+# Inisialisasi Suara
+coin_sound = pygame.mixer.Sound("Sound_Coin.mp3")
+bomb_sound = pygame.mixer.Sound("Sound_Bomb.mp3")
 
 # Kelas Partikel
 class Particle:
@@ -123,15 +123,15 @@ class Coin:
         )[0]
 
         if coin_type == "yellow":
-            self.image = pygame.image.load("PBO/Minggu 4/coin yellow.png")
+            self.image = pygame.image.load("Coin Yellow.png")
             self.color = (255, 223, 0)  # Kuning
             self.points = 1
         elif coin_type == "green":
-            self.image = pygame.image.load("PBO/Minggu 4/coin green.png")
+            self.image = pygame.image.load("Coin Green.png")
             self.color = (0, 255, 0)  # Hijau
             self.points = 5
         elif coin_type == "blue": 
-            self.image = pygame.image.load("PBO/UAS/coin blue.png")
+            self.image = pygame.image.load("Coin Blue.png")
             self.color = (0, 0, 255)  # Biru
             self.points = 10
 
@@ -155,7 +155,7 @@ class Bomb:
         self.speed = speed
         self.angle = 0
         self.rotation_speed = random.uniform(2, 5)
-        self.image = pygame.image.load("PBO/Minggu 4/bom.png")  # Path ke gambar bom
+        self.image = pygame.image.load("Bom.png")  # Path ke gambar bom
         self.image = pygame.transform.scale(self.image, (self.radius * 2, self.radius * 2))
         self.color = (0, 0, 0)
 
@@ -181,7 +181,7 @@ class Game:
         self.running = True
         self.slow_motion_active = False
         self.slow_motion_timer = 0
-        self.background = pygame.image.load("PBO/Minggu 4/imgg.webp")
+        self.background = pygame.image.load("background.jpg")
         self.background = pygame.transform.scale(self.background, (WIDTH, HEIGHT))
         self.coin_counts = {"yellow": 0, "green": 0, "blue": 0}
         self.level = level
@@ -225,7 +225,7 @@ class Game:
                       self.player.y + self.player.height > coin.y):
                     self.coins.remove(coin)
                     self.spawn_particles(coin.x + coin.radius, coin.y + coin.radius, coin.color)
-                    coin_sound.play()  # Tambahkan suara untuk koin
+                    coin_sound.play()  # Mainkan suara koin
                     self.score += coin.points
                     if coin.color == (255, 223, 0):
                         self.coin_counts["yellow"] += 1
@@ -244,9 +244,8 @@ class Game:
                       self.player.y + self.player.height > bomb.y):
                     self.bombs.remove(bomb)
                     self.spawn_particles(bomb.x + bomb.radius, bomb.y + bomb.radius, bomb.color)
-                    explosion_sound.play()  # Tambahkan suara untuk bom
+                    bomb_sound.play()  # Mainkan suara bomb
                     self.player.destroy()  # Hancurkan keranjang saat terkena bom
-
                     self.start_slow_motion()
 
         for particle in self.particles[:]:
@@ -277,4 +276,75 @@ class Game:
         self.screen.blit(score_text, (10, 10))
 
         pygame.display.flip()
+        
+    def start_slow_motion(self):
+        self.slow_motion_active = True
+        self.slow_motion_timer = 120
+        self.clock.tick(30)
 
+    def end_slow_motion(self):
+        self.slow_motion_active = False
+        self.game_over_screen()
+
+    def game_over_screen(self):
+        font_title = pygame.font.SysFont('Times New Roman', 90)
+        game_over_surface = font_title.render('YOU DIED', True, RED)
+        game_over_rect = game_over_surface.get_rect(center=(WIDTH / 2, HEIGHT / 4))
+
+        font_options = pygame.font.SysFont('Times New Roman', 40)
+        yellow_text = font_options.render(f"Yellow Coins: {self.coin_counts['yellow']} x 1 = {self.coin_counts['yellow'] * 1}", True, BLACK)
+        green_text = font_options.render(f"Green Coins: {self.coin_counts['green']} x 5 = {self.coin_counts['green'] * 5}", True, BLACK)
+        blue_text = font_options.render(f"Blue Coins: {self.coin_counts['blue']} x 10 = {self.coin_counts['blue'] * 10}", True, BLACK)
+        total_text = font_options.render(f"Total Score: {self.score}", True, BLACK)
+        try_again_surface = font_options.render('Try Again', True, BLACK)  # Try Again warna hitam
+        quit_surface = font_options.render('Quit', True, BLACK)
+
+        try_again_rect = try_again_surface.get_rect(midright=(WIDTH - 20, HEIGHT / 2))
+        quit_rect = quit_surface.get_rect(midright=(WIDTH - 20, HEIGHT / 2 + 60))
+
+        self.screen.blit(self.background, (0, 0))
+        self.screen.blit(game_over_surface, game_over_rect)
+        self.screen.blit(yellow_text, (20, HEIGHT / 2 - 50))
+        self.screen.blit(green_text, (20, HEIGHT / 2))
+        self.screen.blit(blue_text, (20, HEIGHT / 2 + 50))
+        self.screen.blit(total_text, (20, HEIGHT / 2 + 100))
+        self.screen.blit(try_again_surface, try_again_rect)
+        self.screen.blit(quit_surface, quit_rect)
+
+        pygame.display.flip()
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
+                    if try_again_rect.collidepoint(mouse_x, mouse_y):
+                        self.reset_game()
+                        return
+                    if quit_rect.collidepoint(mouse_x, mouse_y):
+                        pygame.quit()
+                        sys.exit()
+
+    def reset_game(self):
+        self.__init__()
+
+    def run(self):
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+
+            self.handle_input()
+            self.spawn_coin()
+            self.spawn_bomb()
+            self.update()
+            self.render()
+            self.clock.tick(FPS)
+
+# Kode Menu Utama
+def main_menu():
+    small_font = pygame.font.SysFont('Arial', 40)
+    large_font = pygame.font.SysFont('Arial', 70)
+    
